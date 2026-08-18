@@ -1,0 +1,140 @@
+openapi: "3.0.3"
+info:
+  title: Búsqueda Vectorial
+  description: API de búsqueda semántica con embeddings OpenAI y Qdrant.
+  version: "1.0.0"
+
+servers:
+  - url: https://busqueda-api-381330972992.us-central1.run.app
+    description: Servidor local
+
+paths:
+  /api/busqueda:
+    post:
+      summary: Realizar una búsqueda semántica
+      description: |
+        Recibe un texto de búsqueda, genera su embedding con OpenAI y busca
+        los documentos más similares en la base vectorial (Qdrant).
+      operationId: busqueda
+      tags:
+        - busqueda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusquedaRequest"
+            examples:
+              busqueda_simple:
+                summary: Búsqueda con límite por defecto
+                value:
+                  input: "¿Cuál es la política de vacaciones?"
+              busqueda_con_limite:
+                summary: Búsqueda especificando límite de resultados
+                value:
+                  input: "¿Cuál es la política de vacaciones?"
+                  limit: 3
+      responses:
+        "200":
+          description: Resultados de la búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusquedaResponse"
+              example:
+                input: "¿Cuál es la política de vacaciones?"
+                results:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    source_file: "politicas_rrhh.pdf"
+                    document_name: "Política de vacaciones"
+                    content: "Los empleados tienen derecho a 15 días de vacaciones al año."
+                    score: 0.87
+        "422":
+          description: Error de validación en el request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "500":
+          description: Error interno del servidor
+
+components:
+  schemas:
+    BusquedaRequest:
+      type: object
+      required:
+        - input
+      properties:
+        input:
+          type: string
+          description: Texto o pregunta a buscar en la base vectorial
+          example: "¿Cuál es la política de vacaciones?"
+        limit:
+          type: integer
+          description: Cantidad máxima de resultados a retornar
+          default: 5
+          example: 5
+
+    ElementoBusqueda:
+      type: object
+      required:
+        - id
+        - source_file
+        - document_name
+        - content
+        - score
+      properties:
+        id:
+          type: string
+          description: Identificador único del fragmento encontrado
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        source_file:
+          type: string
+          description: Archivo origen del documento
+          example: "politicas_rrhh.pdf"
+        document_name:
+          type: string
+          description: Nombre del documento
+          example: "Política de vacaciones"
+        content:
+          type: string
+          description: Contenido del fragmento encontrado
+          example: "Los empleados tienen derecho a 15 días de vacaciones al año."
+        score:
+          type: number
+          format: float
+          description: Puntaje de similitud semántica (0 a 1)
+          example: 0.87
+
+    BusquedaResponse:
+      type: object
+      required:
+        - input
+        - results
+      properties:
+        input:
+          type: string
+          description: Texto de búsqueda original
+          example: "¿Cuál es la política de vacaciones?"
+        results:
+          type: array
+          description: Lista de resultados encontrados, ordenados por relevancia
+          items:
+            $ref: "#/components/schemas/ElementoBusqueda"
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string
